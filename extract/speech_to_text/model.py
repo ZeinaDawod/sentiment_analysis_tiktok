@@ -1,6 +1,6 @@
 from transformers import pipeline
-
-MODEL_NAME = "openai/whisper-small"
+from config import WHISPER_MODEL
+MODEL_NAME =  WHISPER_MODEL
 
 _asr_pipeline = None
 

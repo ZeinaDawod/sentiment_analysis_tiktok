@@ -1,17 +1,16 @@
 from .model import load_model
 
-def transcribe(audio_path: str, language: str = None) -> str:
+
+def transcribe(audio_path: str) -> str:
     asr_pipeline = load_model()
 
-    if language is None:
-        result = asr_pipeline(audio_path)
-    else:
-        result = asr_pipeline(
-            audio_path,
-            generate_kwargs={
-                "language": language,
-                "task": "transcribe",
-            },
-        )
+    result = asr_pipeline(
+        audio_path,
+        return_timestamps=True,
+        generate_kwargs={
+            "language": "english",
+            "task": "transcribe",
+        },
+    )
 
     return result["text"].strip()

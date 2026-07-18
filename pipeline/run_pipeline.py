@@ -1,105 +1,103 @@
 
 from pathlib import Path
 import pandas as pd
-from clean_data.dedup import remove_duplicates
-from clean_data.remove_mislabeled_neutral import remove_mislabeled_neutral
+import time
 import traceback
+from extract import transcribe, predict_facial_expression
+from pipeline.fix_transcript import fix_transcript
 
-from extract import transcribe, predict_tone
-from extract import get_audio_from_url
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-INPUT_CSV = BASE_DIR / "data_collection" / "tiktok_results_all.csv"
+INPUT_CSV = BASE_DIR / "process_data" / "tiktok_results_processed.csv"
 OUTPUT_CSV = BASE_DIR / "pipeline" / "final_dataset.csv"
-SUMMARY_CSV = BASE_DIR / "pipeline" / "class_transcript_expression_tone.csv"
 
 
+def load_existing_results() -> dict:
+
+    if not OUTPUT_CSV.exists():
+        return {}
+
+    existing_df = pd.read_csv(OUTPUT_CSV)
+    cache = {}
+    for _, row in existing_df.iterrows():
+        if pd.notna(row.get("transcript")) and pd.notna(row.get("facial_expression")):
+            cache[row["video_url"]] = {
+                "transcript": row["transcript"],
+                "facial_expression": row["facial_expression"],
+            }
+    return cache
 def run():
+    df = pd.read_csv(INPUT_CSV)
+    print(f"[*] Loaded {len(df)} rows with audio ready")
 
+    # منجهز الأعمدة مسبقاً بقيم فاضية، بعدين منعبيها صف صف
+    if "transcript" not in df.columns:
+        df["transcript"] = None
+    if "facial_expression" not in df.columns:
+        df["facial_expression"] = None
 
-    NEW_CSV_NEG="data_collection/tiktok_results_neg_new.csv"
-    NEW_CSV_POS = "data_collection/tiktok_results_positive_new.csv"
-    NEW_CSV_NEUTRAL="data_collection/tiktok_results_neutral_new.csv"
-    df_main = pd.read_csv(INPUT_CSV)
-    df_new_pos = pd.read_csv(NEW_CSV_POS)
-    df_new_neg = pd.read_csv(NEW_CSV_NEG)
-    df_new_neu = pd.read_csv(NEW_CSV_NEUTRAL)
-    df_combined = pd.concat([df_main, df_new_pos,df_new_neg,df_new_neu], ignore_index=True)
+    cache = load_existing_results()
+    print(f"[*] Found {len(cache)} already-processed videos in existing output, will skip them")
 
+    transcribe_times, facial_expression_times = [], []
 
-    df_combined = remove_duplicates(df_combined)
-    df_combined = remove_mislabeled_neutral(df_combined)
-
-    df_combined.to_csv(INPUT_CSV, index=False)
-    print(f"Combined: {len(df_combined)} total rows")
-    print(df_combined["class"].value_counts())
-
-
-
-
-
-    audio_paths = []
-
-    for idx, row in df_combined.iterrows():
+    for idx, row in df.iterrows():
         url = row["video_url"]
-
-        try:
-            audio_path = get_audio_from_url(
-                video_url=url,
-                cleanup_video=True
-            )
-
-            audio_paths.append(audio_path)
-            print(f"[{idx}] Audio extracted")
-
-        except Exception as e:
-            print(f"[{idx}] Error: {e}")
-            audio_paths.append(None)
-    df_combined["audio_path"] = audio_paths
-
-    transcripts = []
-    tones = []
-
-
-    for idx, row in df_combined.iterrows():
-
         audio_path = row["audio_path"]
+        video_path = row["video_path"]
 
-        if audio_path is None:
-            transcripts.append(None)
-            tones.append(None)
 
+        if url in cache:
+            df.at[idx, "transcript"] = cache[url]["transcript"]
+            df.at[idx, "facial_expression"] = cache[url]["facial_expression"]
+            print(f"[{idx}] Skipped (already processed): {url[:50]}")
+            continue
+
+        if audio_path is None or (isinstance(audio_path, float) and pd.isna(audio_path)):
+            df.at[idx, "transcript"] = None
+            df.at[idx, "facial_expression"] = None
+            df.to_csv(OUTPUT_CSV, index=False)
             continue
 
         try:
             print("Before transcribe")
+            start = time.time()
             transcript = transcribe(audio_path)
+            transcribe_times.append(time.time() - start)
+            transcript = fix_transcript(transcript)
+            print(f"Transcript: {transcript}")
+            print(f"the time for this transcript {transcribe_times[-1]}")
             print("After transcribe")
 
-            print("Before tone")
-            tone = predict_tone(audio_path)
-            print("After tone")
+            print("Before Facial_Expression")
+            start = time.time()
+            facial_expression = predict_facial_expression(video_path)
+            facial_expression_times.append(time.time() - start)
+            print(f"Facial_Expression: {facial_expression}")
+            print(f"the time for this Facial_Expression {facial_expression_times[-1]}")
+            print("After Facial_Expression")
 
+            df.at[idx, "transcript"] = transcript
+            df.at[idx, "facial_expression"] = facial_expression
 
-            transcripts.append(transcript)
-            tones.append(tone)
-
-
-        except Exception :
+        except Exception:
             traceback.print_exc()
-            transcripts.append(None)
-            tones.append(None)
+            df.at[idx, "transcript"] = None
+            df.at[idx, "facial_expression"] = None
 
 
-    df_combined["transcript"] = transcripts
-    df_combined["tone"] = tones
+        df.to_csv(OUTPUT_CSV, index=False)
+        print(f"[{idx}] Saved progress to {OUTPUT_CSV}")
 
-    df_combined.to_csv(OUTPUT_CSV, index=False)
-    print(f"[*] Saved final dataset ({len(df_combined)} rows) to {OUTPUT_CSV}")
+    if transcribe_times:
+        print(f"\n[*] speech_to_text -> total: {sum(transcribe_times):.2f}s ")
+    if facial_expression_times:
+        print(f"[*] facial_expression_times -> total: {sum(facial_expression_times):.2f}s ")
+
+    print(f"[*] Final dataset ({len(df)} rows) saved to {OUTPUT_CSV}")
 
 
-    summary_df = df_combined[["video_url","class", "transcript",  "tone"]]
-    summary_df.to_csv(SUMMARY_CSV, index=False)
-    print(f"[*] Saved summary file ({len(summary_df)} rows) to {SUMMARY_CSV}")
 
 
 if __name__ == "__main__":
