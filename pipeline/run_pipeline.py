@@ -31,7 +31,7 @@ def run():
     df = pd.read_csv(INPUT_CSV)
     print(f"[*] Loaded {len(df)} rows with audio ready")
 
-    # منجهز الأعمدة مسبقاً بقيم فاضية، بعدين منعبيها صف صف
+
     if "transcript" not in df.columns:
         df["transcript"] = None
     if "facial_expression" not in df.columns:
