@@ -3,15 +3,15 @@ import json
 import csv
 import os
 from playwright.async_api import async_playwright
+from pathlib import Path
 
 KEYWORDS = [
     {"query": "CeraVe cleanser love it review", "class": "pos"},
     {"query": "CeraVe worst skincare review", "class": "neg"},
-    {"query": "CeraVe before after test", "class": "neutral"},
-    {"query":"CeraVe first impression review","class": "neutral"}
+    {"query": "CeraVe before after test", "class": "neutral"}
 ]
-MAX_VIDEOS = 30
-OUTPUT_FILE = "tiktok_results_all.csv"
+MAX_VIDEOS = 25
+OUTPUT_FILE = "./data/tiktok_results_all.csv"
 
 
 async def scrape_tiktok_search(keyword: str, class_label: str, max_videos: int = 25):

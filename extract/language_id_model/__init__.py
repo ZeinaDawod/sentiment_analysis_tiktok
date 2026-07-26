@@ -1,0 +1,1 @@
+from .inference import detect_language, is_arabic
