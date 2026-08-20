@@ -1,6 +1,6 @@
-# TikTok Skincare Product Sentiment Analysis
+# TikTok Skincare Product Sentiment Analysis (CeraVe Focus)
 
-A comprehensive multimodal pipeline designed to collect, process, extract features from, and perform sentiment analysis on TikTok skincare product reviews. The project leverages speech-to-text, facial expression analysis, audio classification, language identification, and LLM-based (Qwen 7B) few-shot classification to categorize video product reviews into **Positive**, **Negative**, or **Neutral** sentiment classes.
+A comprehensive multimodal pipeline designed to collect, process, extract features from, and perform sentiment analysis on TikTok review videos focused on **CeraVe** skincare products. The project leverages speech-to-text, facial expression analysis, audio classification, language identification, and LLM-based (Qwen 7B) few-shot classification to categorize video product reviews into **Positive**, **Negative**, or **Neutral** sentiment classes.
 
 ---
 
@@ -8,10 +8,10 @@ A comprehensive multimodal pipeline designed to collect, process, extract featur
 
 Social media platforms like TikTok have become primary channels for consumer product reviews, especially within the skincare and beauty industry. However, analyzing sentiment in short-form video content presents unique challenges compared to traditional text reviews, as sentiment is expressed through multiple modalities—spoken language, facial expressions, and acoustic cues.
 
-This project provides an end-to-end pipeline that:
-1. **Scrapes** TikTok videos and metadata related to skincare products.
-2. **Preprocesses** and cleans raw metadata, removing duplicates and correcting mislabeled instances.
-3. **Extracts Multimodal Features**, including audio streams, speech transcripts (via Speech-to-Text), language identification, spelling corrections, facial expression features, and audio classifications.
+This project focuses specifically on analyzing TikTok user reviews and feedback for **CeraVe** skincare products, providing an end-to-end pipeline that:
+1. **Scrapes** TikTok videos and metadata related to CeraVe skincare products.
+2. **Preprocesses and cleans** raw metadata by removing duplicates, correcting mislabeled instances, refining transcripts to fix spelling and domain-specific product/brand names (e.g., *CeraVe*, *Cleanser*), filtering out non-English/Arabic videos, and removing music-only videos that lack spoken speech.
+3. **Extracts Multimodal Features**, including speech transcripts (via Speech-to-Text), and facial expression feature.
 4. **Performs LLM-based Sentiment Analysis** using a few-shot prompted **Qwen 7B** model running in a GPU-accelerated environment.
 5. **Evaluates** classification performance using standard evaluation metrics and visual confusion matrices.
 
@@ -31,7 +31,7 @@ This project provides an end-to-end pipeline that:
                   │
                   ▼
   ┌───────────────────────────────┐
-  │ Multimodal Feature Extraction │  (extract/ speech_to_text, facial_expression, audio_classifier, etc.)
+  │ Multimodal Feature Extraction │  (extract/ speech_to_text, facial_expression.)
   └───────────────┬───────────────┘
                   │
                   ▼
@@ -47,23 +47,23 @@ This project provides an end-to-end pipeline that:
                   ▼
   ┌───────────────────────────────┐
   │  Evaluation & Visualizations  │  (results/ classification_report.csv, confusion_matrix.png)
-  └───────────────────────────────┘
+  └───────────────┬───────────────┘
 ```
 
 ---
 
 ## Features
 
-- **Automated TikTok Scraping:** Collects skincare product review videos and associated metadata.
+- **Automated TikTok Scraping:** Collects CeraVe skincare product review videos and associated metadata.
 - **Multimodal Feature Extraction (`extract/`):**
   - **Speech-to-Text:** Transcribes spoken audio from TikTok videos into text.
   - **Facial Expression Analysis:** Extracts visual emotion/expression cues from video frames.
-  - **Audio Classification:** Analyzes background audio and tone properties.
-  - **Language Identification & Spelling Correction:** Filters non-target languages and cleans transcribed text.
-- **Data Cleaning & Quality Control (`process_data/`):**
+- **Data Cleaning & Quality Control (`process_data/ and extract/`):**
   - Automated deduplication of video entries.
   - Identification and correction or removal of mislabeled neutral data.
-  - Text and transcript post-processing.
+  - Transcript enhancement including domain-specific  (e.g., brand names like *CeraVe* and product terms like *Cleanser*).
+  - spelling correction for transcript using **spelling_correction**
+  - Filtering out non-English/Arabic content using **language_id_model** and music-only videos without speech using **audio_classification** 
 - **LLM-based Few-Shot Sentiment Classification:** Utilizes open-source LLMs (Qwen 7B) with tailored prompt templates for accurate 3-class sentiment prediction (**Positive**, **Negative**, **Neutral**).
 - **Automated Evaluation Pipeline:** Generates detailed classification reports and visual confusion matrices saved automatically to the `results/` directory.
 
@@ -85,12 +85,12 @@ This project provides an end-to-end pipeline that:
 │   ├── speech_to_text/                # Audio transcription module
 │   ├── spelling_correction/           # Text transcript spelling correction module
 │   ├── __init__.py
-│   └── bais.py                        # Core extraction helper/processing script
+│   └── bais.py                        # Orchestrates video downloading, audio extraction, and frame extraction for multimodal processing.
 ├── process_data/
 │   ├── __init__.py
 │   ├── dedup.py                       # Data deduplication script
 │   ├── fix_or_remove_mislabeled_neutral.py # Handlers for mislabeled neutral sentiment instances
-│   └── fix_transcript.py              # Transcript cleaning and normalization
+│   └── fix_transcript.py              # Transcript cleaning, spelling correction, and normalization
 ├── prompt/
 │   └── prompt_fewshot.txt             # Few-shot prompt template for LLM inference
 ├── results/
@@ -120,12 +120,13 @@ This project provides an end-to-end pipeline that:
 
 Before passing data into the sentiment classification model, raw collected data undergoes extensive preprocessing:
 
-| Processing Module | File | Purpose |
-| :--- | :--- | :--- |
-| **Deduplication** | `process_data/dedup.py` | Removes duplicate video entries harvested during scraping. |
-| **Neutral Label Fix** | `process_data/fix_or_remove_mislabeled_neutral.py` | Identifies ambiguously labeled neutral rows and cleans/removes them to improve dataset quality. |
-| **Transcript Fix** | `process_data/fix_transcript.py` | Corrects speech-to-text errors and formats raw text into clean prompt-ready sentences. |
-| **Multimodal Extraction** | `extract/` | Extracts secondary signals (facial expressions, audio tone, language ID, spelling fixes) to enrich context. |
+| Processing Module | File                                                              | Purpose                                                                                                                     |
+| :--- |:------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------|
+| **Deduplication** | `process_data/dedup.py`                                           | Removes duplicate video entries harvested during scraping.                                                                  |
+| **Neutral Label Fix** | `process_data/fix_or_remove_mislabeled_neutral.py`                | Identifies ambiguously labeled neutral rows and cleans/removes them to improve dataset quality.                             |
+| **Transcript Fix & Spelling Correction** | `process_data/fix_transcript.py` & `extract/spelling_correction/` | Corrects speech-to-text spelling errors, specifically domain-specific brand/product terms (e.g., *CeraVe*, *Cleanser*).     |
+| **Data Filtering** | `extract/language_id_model/` & `extract/audio_classifier/`        | Filters out non-English/Arabic videos as well as music-only videos that lack spoken verbal content.                         |
+| **Multimodal Feature Extraction** | `extract/facial_expression_model/` & `extract/speech-to-text/`    | Extracts signals (facial expressions, Speech-to-Text)                                                                       |
 
 ---
 
@@ -148,7 +149,7 @@ The core sentiment analysis engine relies on large language modeling using the *
 > The sentiment analysis stage relies on **Qwen 7B**, which requires substantial VRAM (NVIDIA GPU with at least 16GB+ VRAM recommended, e.g., T4, V100, A100).
 
 - **Local Execution vs. GPU/Colab:**
-  - Lightweight data preprocessing (`process_data/`) and evaluation scripts (`sentiment_analysis/evaluate.py`) can be executed on standard CPU devices locally.
+  - TikTok Data Collection (`data_collection/tiktok_scraper.py`),data preprocessing (`process_data/`), feature extractionc(`extract/facial_expression_model/` & `extract/speech-to-text/` ) and evaluation scripts (`sentiment_analysis/evaluate.py`) can be executed on standard CPU devices locally.
   - The inference engine (`sentiment_analysis/run_sentiment_analysis.py`) and notebook (`sentiment_analysis/notebook/qwen_7b_sentiment_analysis.ipynb`) **MUST** be run on a GPU-enabled environment (e.g., Google Colab Pro, AWS EC2 GPU instance, or local CUDA workstation).
 - **Interactive Workflow:** Use `sentiment_analysis/notebook/qwen_7b_sentiment_analysis.ipynb` in Google Colab to run the sentiment analysis interactively and reproduce results.
 
@@ -159,7 +160,7 @@ The core sentiment analysis engine relies on large language modeling using the *
 Prompt design plays a fundamental role in directing the Qwen 7B model to output structured, high-accuracy sentiment classifications.
 
 - **Template Location:** `prompt/prompt_fewshot.txt`
-- **Design Strategy:** Uses **few-shot learning**, providing explicit examples of skincare product feedback along with multimodal context cues.
+- **Design Strategy:** Uses **few-shot learning**, providing explicit examples of **CeraVe** skincare product feedback along with multimodal context cues.
 - **Output Constraint:** Directs the LLM to output clear classifications into one of the three target categories: `Positive`, `Negative`, or `Neutral`.
 
 ---
