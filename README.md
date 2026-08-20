@@ -126,8 +126,6 @@ Before passing data into the sentiment classification model, raw collected data 
 | **Neutral Label Fix** | `process_data/fix_or_remove_mislabeled_neutral.py`                | Identifies ambiguously labeled neutral rows and cleans/removes them to improve dataset quality.                             |
 | **Transcript Fix & Spelling Correction** | `process_data/fix_transcript.py` & `extract/spelling_correction/` | Corrects speech-to-text spelling errors, specifically domain-specific brand/product terms (e.g., *CeraVe*, *Cleanser*).     |
 | **Data Filtering** | `extract/language_id_model/` & `extract/audio_classifier/`        | Filters out non-English/Arabic videos as well as music-only videos that lack spoken verbal content.                         |
-| **Multimodal Feature Extraction** | `extract/facial_expression_model/` & `extract/speech-to-text/`    | Extracts signals (facial expressions, Speech-to-Text)                                                                       |
-
 ---
 
 ## Sentiment Analysis
