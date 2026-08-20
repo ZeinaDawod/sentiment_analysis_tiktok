@@ -11,6 +11,7 @@ CORRECTIONS = {
     "serave": "CeraVe",
     "cera v": "CeraVe",
     "sera v": "CeraVe",
+    "CeraVeal":"CeraVe",
 
 
     "hyaluronic assets": "hyaluronic acid",

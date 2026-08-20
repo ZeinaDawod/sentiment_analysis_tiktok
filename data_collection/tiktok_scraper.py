@@ -3,7 +3,20 @@ import json
 import csv
 import os
 from playwright.async_api import async_playwright
+import logging
+
 from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+log_file_path = script_dir / "tiktok_scraper.log"
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_path, encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 
 KEYWORDS = [
     {"query": "CeraVe cleanser love it review", "class": "pos"},
@@ -11,7 +24,7 @@ KEYWORDS = [
     {"query": "CeraVe before after test", "class": "neutral"}
 ]
 MAX_VIDEOS = 25
-OUTPUT_FILE = "./data/tiktok_results_all.csv"
+OUTPUT_FILE = "./data/tiktok_results_alll.csv"
 
 
 async def scrape_tiktok_search(keyword: str, class_label: str, max_videos: int = 25):
@@ -52,13 +65,13 @@ async def scrape_tiktok_search(keyword: str, class_label: str, max_videos: int =
                 try:
                     data = await response.json()
                     intercepted.append(data)
-                    print(f"    [API] Response #{api_hit_count} from: {url[:80]}")
+                    logger.debug(f"[API] Response #{api_hit_count} from: {url[:80]}")
                 except Exception as e:
-                    print(f"    [API] Failed to parse response: {e}")
+                    logger.error(f"[API] Failed to parse response: {e}")
 
         page.on("response", handle_response)
 
-        print(f"[*] open tiktok  {keyword}  (class={class_label})")
+        logger.info(f"Opening TikTok for keyword: '{keyword}' (class={class_label})")
         await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
         await asyncio.sleep(10)
 
@@ -92,15 +105,12 @@ async def scrape_tiktok_search(keyword: str, class_label: str, max_videos: int =
                                 "description": desc.strip(),
                                 "class": class_label,
                             })
-                            print(f"[+] ({len(results)}) {video_url[:60]}")
+                            logger.info(f"Collected ({len(results)}) videos | Current: {video_url[:60]}")
                     except Exception:
                         continue
 
             new_this_round = len(results) - before_count
-            print(f"[*] Scroll {scroll_count + 1}/{max_scrolls} | "
-                  f"API hits: {len(intercepted)} | "
-                  f"{new_this_round} | "
-                  f" {len(results)}")
+            logger.debug(f"Scroll {scroll_count + 1}/{max_scrolls} | API hits: {len(intercepted)} | New: {new_this_round} | Total: {len(results)}")
 
             intercepted.clear()
 
@@ -124,7 +134,7 @@ async def scrape_tiktok_search(keyword: str, class_label: str, max_videos: int =
 
 def save_results(results, output_file, append=False):
     if not results:
-        print("no result saved ")
+        logger.warning("No results saved.")
         return
 
     file_exists = os.path.exists(output_file)
@@ -137,7 +147,7 @@ def save_results(results, output_file, append=False):
             writer.writeheader()
         writer.writerows(results)
 
-    print(f"\nSaved {len(results)} rows to '{output_file}' (append={append})")
+    logger.info(f"Saved {len(results)} rows to '{output_file}' (append={append})")
 
 
 async def main():
@@ -148,17 +158,16 @@ async def main():
         keyword = kw["query"]
         class_label = kw["class"]
 
-        print(f"\n{'=' * 60}")
-        print(f"search for TikTok videos  '{keyword}'  -> class: {class_label}")
-        print(f"{'=' * 60}")
+        logger.info("=" * 60)
+        logger.info(f"Searching for TikTok videos: '{keyword}' -> class: {class_label}")
+        logger.info("=" * 60)
 
         results = await scrape_tiktok_search(keyword, class_label, MAX_VIDEOS)
 
-        print(f"\n[*] Got {len(results)} results for keyword '{keyword}'")
+        logger.info(f"Got {len(results)} results for keyword '{keyword}'")
         for i, r in enumerate(results, 1):
-            print(f"[{i}] {r['video_url']}")
-            print(f"    {r['description'][:100]}...")
-
+            logger.debug(f"[{i}] {r['video_url']}")
+            logger.debug(f"    Description: {r['description'][:100]}...")
 
         save_results(results, OUTPUT_FILE, append=True)
         total_count += len(results)
@@ -166,10 +175,10 @@ async def main():
 
         await asyncio.sleep(5)
 
-    print(f"\n{'=' * 60}")
-    print(f"TOTAL results collected across all keywords: {total_count}")
-    print(f"Saved incrementally to '{OUTPUT_FILE}'")
-    print(f"{'=' * 60}")
+    logger.info("=" * 60)
+    logger.info(f"TOTAL results collected across all keywords: {total_count}")
+    logger.info(f"Saved incrementally to '{OUTPUT_FILE}'")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

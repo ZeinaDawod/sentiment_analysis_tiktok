@@ -1,11 +1,19 @@
-
-
-from pathlib import Path
+import logging
 import pandas as pd
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+log_file_path = script_dir / "fix_or_remove_mislabeled_neutral.log"
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_path, encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-RAW_CSV = BASE_DIR / "data_collection" / "tiktok_results_all.csv"
-CLEANED_CSV = BASE_DIR / "process_data" / "tiktok_results_no_mislabeled.csv"
+
 
 
 POSITIVE_SIGNAL_WORDS = [
@@ -47,19 +55,40 @@ def is_actually_negative(description: str) -> bool:
     return any(phrase in desc_lower for phrase in NEGATIVE_SIGNAL_WORDS)
 
 
-def remove_mislabeled_neutral(df: pd.DataFrame) -> pd.DataFrame:
+def fix_or_remove_mislabeled_neutral(df: pd.DataFrame) -> pd.DataFrame:
+    unique_videos_count = len(df)
+
+
     is_neutral = df["class"].str.lower() == "neutral"
-    is_flagged_positive = df["description"].apply(is_actually_positive)
-    is_flagged_negative = df["description"].apply(is_actually_negative)
-
-    mislabeled_mask = is_neutral & (is_flagged_positive | is_flagged_negative)
-    removed_count = mislabeled_mask.sum()
-
-    df_cleaned = df[~mislabeled_mask].reset_index(drop=True)
-
-    print(f"[remove_mislabeled_neutral] Removed {removed_count} mislabeled rows "
-          f"({len(df)} -> {len(df_cleaned)})")
-
-    return df_cleaned
+    is_pos = df["description"].apply(is_actually_positive)
+    is_neg = df["description"].apply(is_actually_negative)
 
 
+    if unique_videos_count > 50:
+
+        mislabeled_mask = is_neutral & (is_pos | is_neg)
+        removed_count = mislabeled_mask.sum()
+
+        df_cleaned = df[~mislabeled_mask].reset_index(drop=True)
+
+        logger.info(f"[DELETE MODE] Unique video count ({unique_videos_count}) is > 50.")
+        logger.info(f"Removed {removed_count} mislabeled rows. Dataset size: {len(df)} -> {len(df_cleaned)}")
+        return df_cleaned
+
+    else:
+
+        df_cleaned = df.copy()
+
+        pos_target = is_neutral & is_pos & (~is_neg)
+        neg_target = is_neutral & is_neg & (~is_pos)
+
+        df_cleaned.loc[pos_target, "class"] = "positive"
+        df_cleaned.loc[neg_target, "class"] = "negative"
+
+        fixed_pos_count = pos_target.sum()
+        fixed_neg_count = neg_target.sum()
+        total_fixed = fixed_pos_count + fixed_neg_count
+
+        logger.info(f"[RELABEL MODE] Unique video count ({unique_videos_count}) is <= 50.")
+        logger.info(f"Relabeled {total_fixed} rows ({fixed_pos_count} -> positive, {fixed_neg_count} -> negative).")
+        return df_cleaned

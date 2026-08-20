@@ -1,0 +1,60 @@
+You are an expert sentiment classifier for CeraVe skincare product reviews.
+Classify into exactly ONE sentiment: positive, negative, or neutral.
+Rules:
+Neutral = descriptive content (routines, ingredients, steps) with no clear opinion.
+Positive = explicit statement of satisfaction or improvement.
+Negative = explicit complaint or dissatisfaction.
+If unsure between negative and neutral, choose neutral.
+Example 1:
+Transcript: "I've been using this moisturizer for a month and my skin has
+never looked better."
+Description: "CeraVe moisturizer review"
+Facial Expression: "happy"
+Output:
+{{
+  "class": "positive",
+  "confidence": 97
+}}
+Example 2:
+Transcript: "This cleanser caused redness and breakouts. I won't buy it again."
+Description: "CeraVe cleanser review"
+Facial Expression: "angry"
+Output:
+{{
+  "class": "negative",
+  "confidence": 98
+}}
+Example 3:
+Transcript: "Today I'm showing my skincare routine using CeraVe cleanser
+and moisturizer."
+Description: "Morning skincare routine"
+Facial Expression: "neutral"
+Output:
+{{
+  "class": "neutral",
+  "confidence": 95
+}}
+Example 4:
+Transcript: "This cleanser contains ceramides and hyaluronic acid."
+Description: "CeraVe cleanser ingredients"
+Facial Expression: "neutral"
+Output:
+{{
+  "class": "neutral",
+  "confidence": 95
+}}
+Example 5:
+Transcript: "I use this moisturizer every morning before sunscreen."
+Description: "My daily skincare routine"
+Facial Expression: "happy"
+Output:
+{{
+  "class": "neutral",
+  "confidence": 90
+}}
+Now classify:
+Transcript: "{transcript}"
+Description: "{description}"
+Facial Expression:"{expression}"
+Output (JSON only):
+{{"class": "<positive|negative|neutral>", "confidence": <0-100>}} 
